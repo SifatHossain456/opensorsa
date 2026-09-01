@@ -1,7 +1,16 @@
 // Crypto Cashtags, Token Addresses, Sentiment & Keyword Extractor
 
-const BULLISH_WORDS = ['bullish', 'pump', 'moon', 'gem', 'accumulate', 'buying', 'ath', 'breakout', 'long', 'up', 'surge', 'undervalued', 'alpha'];
-const BEARISH_WORDS = ['bearish', 'dump', 'scam', 'rug', 'sell', 'crash', 'down', 'fud', 'short', 'overvalued', 'hack', 'exploit', 'drop'];
+const BULLISH_WORDS = ['bullish', 'pump', 'moon', 'gem', 'accumulate', 'buying', 'ath', 'breakout', 'long', 'up', 'surge', 'undervalued', 'alpha', 'lfg', 'gain'];
+const BEARISH_WORDS = ['bearish', 'dump', 'scam', 'rug', 'sell', 'crash', 'down', 'fud', 'short', 'overvalued', 'hack', 'exploit', 'drop', 'rekt'];
+
+function extractText(item) {
+  if (!item) return '';
+  if (typeof item === 'string') return item;
+  if (typeof item.text === 'string') return item.text;
+  if (typeof item.raw_text === 'string') return item.raw_text;
+  if (typeof item.text === 'object' && item.text?.text) return item.text.text;
+  return '';
+}
 
 function analyzeCryptoContent(tweets = []) {
   const cashtagCount = {};
@@ -19,64 +28,67 @@ function analyzeCryptoContent(tweets = []) {
   const cashtagRegex = /\$([A-Za-z0-9]{2,10})\b/g;
   const hashtagRegex = /#([A-Za-z0-9_]{2,30})\b/g;
   const evmAddressRegex = /\b(0x[a-fA-F0-9]{40})\b/g;
-  const solanaAddressRegex = /\b([1-9A-HJ-NP-Za-km-z]{32,44})\b/g;
 
-  tweets.forEach(tweet => {
-    const text = tweet.text || tweet.raw_text || '';
-    const lower = text.toLowerCase();
+  if (Array.isArray(tweets)) {
+    tweets.forEach(tweet => {
+      if (!tweet) return;
+      const text = extractText(tweet);
+      const lower = text.toLowerCase();
 
-    // Engagement aggregation
-    const views = Number(tweet.views) || 0;
-    const likes = Number(tweet.likes) || 0;
-    const reposts = Number(tweet.reposts || tweet.retweets) || 0;
-    const replies = Number(tweet.replies) || 0;
+      // Engagement aggregation
+      const views = Number(tweet.views) || 0;
+      const likes = Number(tweet.likes) || 0;
+      const reposts = Number(tweet.reposts || tweet.retweets) || 0;
+      const replies = Number(tweet.replies) || 0;
 
-    totalLikes += likes;
-    totalViews += views;
-    totalReposts += reposts;
-    totalReplies += replies;
+      totalLikes += likes;
+      totalViews += views;
+      totalReposts += reposts;
+      totalReplies += replies;
 
-    // Cashtag extraction
-    let match;
-    while ((match = cashtagRegex.exec(text)) !== null) {
-      const sym = match[1].toUpperCase();
-      // Filter out non-crypto numbers
-      if (!/^\d+$/.test(sym)) {
-        cashtagCount[sym] = (cashtagCount[sym] || 0) + 1;
+      if (!text) return;
+
+      // Cashtag extraction
+      let match;
+      while ((match = cashtagRegex.exec(text)) !== null) {
+        const sym = match[1].toUpperCase();
+        if (!/^\d+$/.test(sym)) {
+          cashtagCount[sym] = (cashtagCount[sym] || 0) + 1;
+        }
       }
-    }
 
-    // Hashtag extraction
-    while ((match = hashtagRegex.exec(text)) !== null) {
-      const tag = match[1].toLowerCase();
-      hashtagCount[tag] = (hashtagCount[tag] || 0) + 1;
-    }
+      // Hashtag extraction
+      while ((match = hashtagRegex.exec(text)) !== null) {
+        const tag = match[1].toLowerCase();
+        hashtagCount[tag] = (hashtagCount[tag] || 0) + 1;
+      }
 
-    // EVM Addresses
-    while ((match = evmAddressRegex.exec(text)) !== null) {
-      contractAddresses.add({
-        address: match[1],
-        chain: 'EVM (Ethereum/Base/BSC/Arbitrum)',
-        tweetId: tweet.id
+      // EVM Addresses
+      while ((match = evmAddressRegex.exec(text)) !== null) {
+        contractAddresses.add({
+          address: match[1],
+          chain: 'EVM (Ethereum/Base/BSC/Arbitrum)',
+          tweetId: tweet.id
+        });
+      }
+
+      // Sentiment heuristic
+      BULLISH_WORDS.forEach(w => {
+        if (lower.includes(w)) bullishPoints++;
       });
-    }
+      BEARISH_WORDS.forEach(w => {
+        if (lower.includes(w)) bearishPoints++;
+      });
 
-    // Sentiment heuristic
-    BULLISH_WORDS.forEach(w => {
-      if (lower.includes(w)) bullishPoints++;
+      // Keyword tokens
+      const words = lower.replace(/[^a-z0-9\s]/g, ' ').split(/\s+/);
+      words.forEach(w => {
+        if (w.length > 3 && !['https', 'with', 'that', 'this', 'from', 'have', 'your', 'about', 'just', 'more', 'what', 'will', 'been', 'there'].includes(w)) {
+          wordFrequency[w] = (wordFrequency[w] || 0) + 1;
+        }
+      });
     });
-    BEARISH_WORDS.forEach(w => {
-      if (lower.includes(w)) bearishPoints++;
-    });
-
-    // Keyword tokens
-    const words = lower.replace(/[^a-z0-9\s]/g, ' ').split(/\s+/);
-    words.forEach(w => {
-      if (w.length > 3 && !['https', 'with', 'that', 'this', 'from', 'have', 'your', 'about', 'just', 'more', 'what'].includes(w)) {
-        wordFrequency[w] = (wordFrequency[w] || 0) + 1;
-      }
-    });
-  });
+  }
 
   // Sort cashtags
   const sortedCashtags = Object.entries(cashtagCount)
@@ -106,7 +118,7 @@ function analyzeCryptoContent(tweets = []) {
     else if (bullRatio <= 0.45) sentiment = 'Slightly Bearish';
   }
 
-  const tweetCount = Math.max(tweets.length, 1);
+  const tweetCount = Math.max(Array.isArray(tweets) ? tweets.length : 0, 1);
   const avgLikes = Math.round(totalLikes / tweetCount);
   const avgViews = Math.round(totalViews / tweetCount);
   const avgReposts = Math.round(totalReposts / tweetCount);
@@ -123,7 +135,7 @@ function analyzeCryptoContent(tweets = []) {
       bearishSignals: bearishPoints
     },
     metrics: {
-      totalAnalyzedTweets: tweets.length,
+      totalAnalyzedTweets: Array.isArray(tweets) ? tweets.length : 0,
       totalLikes,
       totalViews,
       totalReposts,
@@ -137,5 +149,6 @@ function analyzeCryptoContent(tweets = []) {
 }
 
 module.exports = {
+  extractText,
   analyzeCryptoContent
 };
