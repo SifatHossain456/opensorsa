@@ -3,11 +3,24 @@
   "version": "1.0.0",
   "description": "100% Free Sorsa & TweetScout Alternative for X/Twitter Intelligence",
   "scripts": {
+    "build": "cd client && npm install && npm run build",
     "server": "node server/index.js",
-    "client": "npm.cmd --prefix client run dev",
-    "build:client": "npm.cmd --prefix client run build"
+    "client": "cd client && npm run dev",
+    "dev": "node server/index.js"
   },
-  "keywords": ["sorsa", "tweetscout", "twitter-intel", "crypto", "analytics", "osint"],
+  "dependencies": {
+    "axios": "^1.7.9",
+    "cors": "^2.8.5",
+    "express": "^4.21.2"
+  },
+  "keywords": [
+    "sorsa",
+    "tweetscout",
+    "twitter-intel",
+    "crypto",
+    "analytics",
+    "osint"
+  ],
   "author": "OpenSorsa Community",
   "license": "MIT"
 }
