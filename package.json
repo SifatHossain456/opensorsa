@@ -1,0 +1,13 @@
+{
+  "name": "opensorsa",
+  "version": "1.0.0",
+  "description": "100% Free Sorsa & TweetScout Alternative for X/Twitter Intelligence",
+  "scripts": {
+    "server": "node server/index.js",
+    "client": "npm.cmd --prefix client run dev",
+    "build:client": "npm.cmd --prefix client run build"
+  },
+  "keywords": ["sorsa", "tweetscout", "twitter-intel", "crypto", "analytics", "osint"],
+  "author": "OpenSorsa Community",
+  "license": "MIT"
+}
